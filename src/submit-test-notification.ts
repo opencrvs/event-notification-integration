@@ -43,9 +43,10 @@ export type DomesticAddress = {
   addressType: "DOMESTIC";
   country: "BRB" | string;
   administrativeArea: string; // parish id (or name, depending on your config)
-  postalCode?: string;
-  addressLine1?: string;
-  addressLine2?: string;
+  town?: string;
+  street?: string;
+  number?: string;
+  zipCode?: string;
 };
 
 export type PersonName = {
@@ -264,11 +265,6 @@ async function main() {
         .slice(0, 10),
       "child.placeOfBirth": "HEALTH_FACILITY",
       "child.birthLocation": hospitalId,
-      "child.birthLocation.privateHome": {
-        addressType: "DOMESTIC",
-        country: "BRB",
-        administrativeArea: parishId,
-      },
       "informant.relation": "GRANDFATHER",
       "informant.name": {
         firstname: informantFirstName,
@@ -287,6 +283,10 @@ async function main() {
         addressType: "DOMESTIC",
         country: "BRB",
         administrativeArea: parishId,
+        town: faker.location.city(),
+        street: faker.location.street(),
+        number: faker.location.buildingNumber(),
+        zipCode: faker.location.zipCode(),
       },
       "informant.email": faker.internet
         .email({
@@ -314,6 +314,10 @@ async function main() {
         addressType: "DOMESTIC",
         country: "BRB",
         administrativeArea: parishId,
+        town: faker.location.city(),
+        street: faker.location.street(),
+        number: faker.location.buildingNumber(),
+        zipCode: faker.location.zipCode(),
       },
 
       "father.reason": "",
