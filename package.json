@@ -1,0 +1,62 @@
+{
+  "name": "@opencrvs/barbados-poc-integration",
+  "version": "1.9.2",
+  "description": "An example notifcation integration",
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "engines": {
+    "node": "22.x.x"
+  },
+  "license": "MPL-2.0",
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn precommit"
+    }
+  },
+  "scripts": {
+    "submit-test-notification": "NODE_OPTIONS=--dns-result-order=ipv4first ts-node -r tsconfig-paths/register src/submit-test-notification.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.1",
+    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "@typescript-eslint/parser": "^5.60.1",
+    "eslint": "^8.43.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "lint-staged": "^7.1.0",
+    "nodemon": "^2.0.22",
+    "prettier": "^3.4.2"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.3.0",
+    "@types/chalk": "^2.2.0",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^25.0.2",
+    "@types/node-fetch": "^2.6.2",
+    "app-module-path": "^2.2.0",
+    "chalk": "^2.4.1",
+    "dotenv": "^16.4.5",
+    "esbuild": "^0.18.9",
+    "node-fetch": "^2.6.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^3.8.0",
+    "typescript": "^5.9.3",
+    "uuid": "^11.1.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,graphql}": [
+      "eslint --fix",
+      "prettier --write",
+      "git add"
+    ],
+    "src/translations/*.csv": [
+      "yarn sort-translations",
+      "git add"
+    ]
+  },
+  "resolutions": {
+    "acorn": "^6.4.1"
+  }
+}

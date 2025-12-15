@@ -1,0 +1,25 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+package-lock.json
+
+# production
+build
+
+# misc
+.DS_Store
+.env
+*.log
+.secrets/*
+# But, keep the .gitignore so the folder is created
+!.secrets/.gitignore
+.idea
+data
+
+.history
+
+*.tar.gz
+.secrets
+.env*
+notebooks

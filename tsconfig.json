@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@barbados-poc-integration/*": ["./*"]
+    },
+    "target": "es6",
+    "module": "Node16",
+    "outDir": "build/dist",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node16",
+    "rootDir": ".",
+    "lib": ["esnext.asynciterable", "es6", "es2017", "es2019", "es2022"],
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "build",
+    "scripts"
+  ],
+  "ts-node": {
+    "files": true
+  }
+}
