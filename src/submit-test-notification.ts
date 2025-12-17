@@ -19,6 +19,8 @@ type CreateEventResponse = {
 };
 
 // Reusable building blocks
+export type SelectBirthType = "live" | "stillbirth";
+export type CertType = "doctor" | "midwife" | "declaration" | "postmortem_report" | "coroners_certificate";
 export type Gender = "male" | "female" | "unknown";
 
 export type PlaceOfBirth = "HEALTH_FACILITY" | "PRIVATE_HOME" | "OTHER";
@@ -34,19 +36,15 @@ export type InformantRelation =
   | "OTHER";
 
 export type IdType =
-  | "NATIONAL_ID"
+  | "NATIONAL_REGISTRATION_NUMBER"
   | "PASSPORT"
-  | "BIRTH_REGISTRATION_NUMBER"
-  | "NONE";
 
 export type DomesticAddress = {
   addressType: "DOMESTIC";
   country: "BRB" | string;
   administrativeArea: string; // parish id (or name, depending on your config)
-  town?: string;
+  area?: string;
   street?: string;
-  number?: string;
-  zipCode?: string;
 };
 
 export type PersonName = {
@@ -56,6 +54,8 @@ export type PersonName = {
 
 // The declaration payload shape (string keys like OpenCRVS form fields)
 export type BirthDeclaration = {
+    "birthType.type"?: SelectBirthType;
+    "birthType.certificateType"?: CertType;
   "child.name": PersonName;
   "child.gender": Gender;
   "child.dob": string;
@@ -63,12 +63,17 @@ export type BirthDeclaration = {
   "child.placeOfBirth": PlaceOfBirth;
   "child.birthLocation"?: string; // hospital id (Location.id) when placeOfBirth = HEALTH_FACILITY
   "child.birthLocation.privateHome"?: DomesticAddress; // address when placeOfBirth = PRIVATE_HOME
+  "child.birthType"?: string; // SINGLE, TWIN, TRIPLET, HIGHER_MULTIPLE_DELIVERY
+  "child.twinType"?: "FIRST_TWIN" | "SECOND_TWIN"; // if twin or higher multiple
+  "child.tripletType"?: "FIRST_TRIPLET" | "SECOND_TRIPLET" | "THIRD_TRIPLET"; // if triplet or higher multiple
+  "child.higherOrderOfBirths"?: string; // if higher multiple
+  "child.attendantAtBirth"?: "DOCTOR" | "MIDWIFE" | "NURSE" | "RELATIVE" | "OTHER" | "NONE";
 
   "informant.relation": InformantRelation;
   "informant.other.relation"?: string;
+  "informant.parentsMarried"?: "YES" | "NO";
   "informant.name"?: PersonName;
   "informant.dob"?: string; // YYYY-MM-DD
-  "informant.nationality"?: string; // Alpha 3 country code e.g. BRB
   "informant.idType"?: IdType;
   "informant.nid"?: string;
   "informant.passport"?: string;
@@ -80,18 +85,23 @@ export type BirthDeclaration = {
   "mother.reason"?: string;
   "mother.name"?: PersonName;
   "mother.dob"?: string; // YYYY-MM-DD
-  "mother.nationality"?: string;
+  "mother.maritalStatus"?: "MARRIED" | "SINGLE" | "DIVORCED" | "WIDOWED" | "NOT_SPECIFIED";
+  "mother.maidenName"?: string;
   "mother.idType"?: IdType;
   "mother.nid"?: string;
   "mother.passport"?: string;
+  "mother.bornAlive"?: string;
+  "mother.stillborn"?: string;
+  "mother.stillAlive"?: string;
+  "mother.occupation"?: string;
   "mother.brn"?: string;
   "mother.address"?: DomesticAddress;
 
   "father.detailsNotAvailable"?: boolean;
   "father.reason"?: string;
+  "father.occupation"?: string;
   "father.name"?: PersonName;
   "father.dob"?: string; // YYYY-MM-DD
-  "father.nationality"?: string;
   "father.idType"?: IdType;
   "father.nid"?: string;
   "father.passport"?: string;
@@ -275,6 +285,7 @@ async function main() {
     eventId,
     transactionId: uuidv4(),
     declaration: {
+    "birthType.type": "live",
       "child.name": {
         firstname: faker.person.firstName("male"),
         surname: sharedSurname,
@@ -286,7 +297,11 @@ async function main() {
         .slice(0, 10),
       "child.placeOfBirth": "HEALTH_FACILITY",
       "child.birthLocation": hospitalId,
-      "informant.relation": "GRANDFATHER",
+      "child.birthType": "SINGLE",
+      "child.attendantAtBirth": "DOCTOR",
+      "informant.relation": "OTHER",
+      "informant.other.relation": "Grandfather",
+      "informant.parentsMarried": "YES",
       "informant.name": {
         firstname: informantFirstName,
         surname: sharedSurname,
@@ -295,7 +310,6 @@ async function main() {
         .between({ from: "1970-01-01", to: "1977-12-30" })
         .toISOString()
         .slice(0, 10),
-      "informant.nationality": "BRB",
       "informant.idType": "PASSPORT",
       "informant.passport":
         faker.string.alpha({ length: 1, casing: "upper" }) +
@@ -304,10 +318,8 @@ async function main() {
         addressType: "DOMESTIC",
         country: "BRB",
         administrativeArea: parishId,
-        town: faker.location.city(),
+        area: faker.location.city(),
         street: faker.location.street(),
-        number: faker.location.buildingNumber(),
-        zipCode: faker.location.zipCode(),
       },
       "informant.email": faker.internet
         .email({
@@ -326,7 +338,7 @@ async function main() {
         .between({ from: "2000-01-01", to: "2005-12-30" })
         .toISOString()
         .slice(0, 10),
-      "mother.nationality": "BRB",
+      "mother.maritalStatus": "MARRIED",
       "mother.idType": "PASSPORT",
       "mother.passport":
         faker.string.alpha({ length: 1, casing: "upper" }) +
@@ -335,12 +347,10 @@ async function main() {
         addressType: "DOMESTIC",
         country: "BRB",
         administrativeArea: parishId,
-        town: faker.location.city(),
-        street: faker.location.street(),
-        number: faker.location.buildingNumber(),
-        zipCode: faker.location.zipCode(),
+        area: faker.location.city(),
+        street: faker.location.street()
       },
-
+      "mother.occupation": faker.person.jobTitle(),
       "father.reason": "",
       "father.name": {
         firstname: faker.person.firstName("male"),
@@ -350,11 +360,11 @@ async function main() {
         .between({ from: "2000-01-01", to: "2005-12-30" })
         .toISOString()
         .slice(0, 10),
-      "father.nationality": "BRB",
       "father.idType": "PASSPORT",
       "father.passport":
         faker.string.alpha({ length: 1, casing: "upper" }) +
         faker.string.numeric(7),
+      "father.occupation": faker.person.jobTitle(),
       "father.addressSameAs": "YES", // set to true if address is same as mother
     },
     annotation: {},
