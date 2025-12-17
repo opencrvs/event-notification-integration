@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker";
+import { faker, ne } from "@faker-js/faker";
 import { v4 as uuidv4 } from "uuid";
 
 type TokenResponse = { access_token: string; token_type: string };
@@ -191,14 +191,16 @@ type LocationBundle = {
   entry?: Array<{
     resource?: {
       id?: string;
+      identifier?: Array<{ system?: string; value?: string }>
       name?: string;
     };
   }>;
 };
 
-export async function getLocationIdByName(
-  officeName: string,
-  locationType: string
+export async function getLocationIdByNameOrStatisticalId(
+  searchString: string,
+  locationType: string,
+  useStatisticalId: boolean = false
 ): Promise<string> {
   const url = `${LOCATIONS_BASE}/location?type=${locationType}`;
 
@@ -212,28 +214,47 @@ export async function getLocationIdByName(
 
   const data = (await res.json()) as LocationBundle;
 
-  const match = data.entry?.find((e) => e.resource?.name === officeName);
+  let match
+  !useStatisticalId ? match = data.entry?.find((e) => e.resource?.name === searchString) : match = data.entry?.find(e => {
+    const r = e.resource
+    if(!r){
+        throw new Error("Location resource missing");
+    }
+    return (r.identifier ?? []).some(id => {
+      const value = id.value ?? ''
+      return value === searchString || value.endsWith(`_${searchString}`)
+      // e.g. "CRVS_OFFICE_BRB_Office_1" endsWith "_BRB_Office_1"
+    })
+  })
 
   if (!match?.resource?.id) {
-    throw new Error(`CRVS office not found: "${officeName}"`);
+    throw new Error(`CRVS office not found: "${searchString}"`);
   }
 
   return match.resource.id;
 }
 
 async function main() {
-  const officeId = await getLocationIdByName(
-    "Registration Department Records Branch",
+  const officeId = await getLocationIdByNameOrStatisticalId(
+    "Registration District A",
     "CRVS_OFFICE"
   );
-  const hospitalId = await getLocationIdByName(
-    "Sandy Crest Medical Centre",
+  console.log("Using officeId:", officeId);
+  const hospitalId = await getLocationIdByNameOrStatisticalId(
+    "Queen Elizabeth Hospital",
     "HEALTH_FACILITY"
   );
-  const parishId = await getLocationIdByName(
+  const parishId = await getLocationIdByNameOrStatisticalId(
     "Christ Church",
     "ADMIN_STRUCTURE"
   );
+
+  // you can also query using an id if you are concerned about spelling differences:
+  /*const statisticalIdExampleForAnOffice = await getLocationIdByNameOrStatisticalId("BRB_Office_1",
+    "CRVS_OFFICE",
+    true
+  );
+  console.log("Statistical ID example for an office:", statisticalIdExampleForAnOffice);*/
   const accessToken = await getAccessToken();
 
   // 1) Create event -> capture eventId
