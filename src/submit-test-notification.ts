@@ -92,7 +92,6 @@ export type BirthDeclaration = {
   "mother.maritalStatus"?: "MARRIED" | "SINGLE" | "DIVORCED" | "WIDOWED" | "NOT_SPECIFIED";
   "mother.maidenName"?: string;
   "mother.idType"?: IdType;
-  "mother.nid"?: string;
   "mother.passport"?: string;
   "mother.bornAlive"?: string;
   "mother.stillborn"?: string;
