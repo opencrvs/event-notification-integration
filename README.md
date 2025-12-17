@@ -1,6 +1,12 @@
 # barbados-poc-integration
 
-Run the following commands
+Checkout the repo and run the following commands
+
+Use correct Node version:
+
+```
+nvm use
+```
 
 Install Node dependencies
 
