@@ -1,4 +1,4 @@
-import { faker, ne } from "@faker-js/faker";
+import { faker } from "@faker-js/faker";
 import { v4 as uuidv4 } from "uuid";
 
 type TokenResponse = { access_token: string; token_type: string };
