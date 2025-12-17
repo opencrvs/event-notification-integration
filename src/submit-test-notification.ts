@@ -39,12 +39,16 @@ export type IdType =
   | "NATIONAL_REGISTRATION_NUMBER"
   | "PASSPORT"
 
+export type StreetLevelDetails = {
+  area?: string;
+  street?: string;
+};
+
 export type DomesticAddress = {
   addressType: "DOMESTIC";
   country: "BRB" | string;
   administrativeArea: string; // parish id (or name, depending on your config)
-  area?: string;
-  street?: string;
+  streetLevelDetails?: StreetLevelDetails;
 };
 
 export type PersonName = {
@@ -318,8 +322,10 @@ async function main() {
         addressType: "DOMESTIC",
         country: "BRB",
         administrativeArea: parishId,
-        area: faker.location.city(),
-        street: faker.location.street(),
+        streetLevelDetails: {
+          area: faker.location.city(),
+          street: faker.location.street(),
+        }
       },
       "informant.email": faker.internet
         .email({
@@ -347,8 +353,10 @@ async function main() {
         addressType: "DOMESTIC",
         country: "BRB",
         administrativeArea: parishId,
-        area: faker.location.city(),
-        street: faker.location.street()
+        streetLevelDetails: {
+          area: faker.location.city(),
+          street: faker.location.street(),
+        }
       },
       "mother.occupation": faker.person.jobTitle(),
       "father.reason": "",
