@@ -19,8 +19,12 @@ type CreateEventResponse = {
 };
 
 // Reusable building blocks
-export type SelectBirthType = "live" | "stillbirth";
-export type CertType = "doctor" | "midwife" | "declaration" | "postmortem_report" | "coroners_certificate";
+export type CertType =
+  | "doctor"
+  | "midwife"
+  | "declaration"
+  | "postmortem_report"
+  | "coroners_certificate";
 export type Gender = "male" | "female" | "unknown";
 
 export type PlaceOfBirth = "HEALTH_FACILITY" | "PRIVATE_HOME" | "OTHER";
@@ -35,9 +39,7 @@ export type InformantRelation =
   | "LEGAL_GUARDIAN"
   | "OTHER";
 
-export type IdType =
-  | "NATIONAL_REGISTRATION_NUMBER"
-  | "PASSPORT"
+export type IdType = "NATIONAL_REGISTRATION_NUMBER" | "PASSPORT";
 
 export type StreetLevelDetails = {
   area?: string;
@@ -58,8 +60,7 @@ export type PersonName = {
 
 // The declaration payload shape (string keys like OpenCRVS form fields)
 export type BirthDeclaration = {
-    "birthType.type"?: SelectBirthType;
-    "birthType.certificateType"?: CertType;
+  "birthType.certificateType"?: CertType;
   "child.name": PersonName;
   "child.gender": Gender;
   "child.dob": string;
@@ -71,14 +72,21 @@ export type BirthDeclaration = {
   "child.twinType"?: "FIRST_TWIN" | "SECOND_TWIN"; // if twin or higher multiple
   "child.tripletType"?: "FIRST_TRIPLET" | "SECOND_TRIPLET" | "THIRD_TRIPLET"; // if triplet or higher multiple
   "child.higherOrderOfBirths"?: string; // if higher multiple
-  "child.attendantAtBirth"?: "DOCTOR" | "MIDWIFE" | "NURSE" | "RELATIVE" | "OTHER" | "NONE";
+  "child.attendantAtBirth"?:
+    | "DOCTOR"
+    | "MIDWIFE"
+    | "NURSE"
+    | "RELATIVE"
+    | "OTHER"
+    | "NONE";
 
   "informant.relation": InformantRelation;
   "informant.other.relation"?: string;
   "informant.parentsMarried"?: "YES" | "NO";
   "informant.name"?: PersonName;
-  "informant.dob"?: string; // YYYY-MM-DD
+  "informant.age": { age: number; asOfDateRef: string };
   "informant.idType"?: IdType;
+  "informant.nationality"?: string;
   "informant.nid"?: string;
   "informant.passport"?: string;
   "informant.brn"?: string;
@@ -88,8 +96,13 @@ export type BirthDeclaration = {
   "mother.detailsNotAvailable"?: boolean;
   "mother.reason"?: string;
   "mother.name"?: PersonName;
-  "mother.dob"?: string; // YYYY-MM-DD
-  "mother.maritalStatus"?: "MARRIED" | "SINGLE" | "DIVORCED" | "WIDOWED" | "NOT_SPECIFIED";
+  "mother.age"?: { age: number; asOfDateRef: string };
+  "mother.maritalStatus"?:
+    | "MARRIED"
+    | "SINGLE"
+    | "DIVORCED"
+    | "WIDOWED"
+    | "NOT_SPECIFIED";
   "mother.maidenName"?: string;
   "mother.idType"?: IdType;
   "mother.passport"?: string;
@@ -97,6 +110,7 @@ export type BirthDeclaration = {
   "mother.stillborn"?: string;
   "mother.stillAlive"?: string;
   "mother.occupation"?: string;
+  'mother.nationality': string;
   "mother.brn"?: string;
   "mother.address"?: DomesticAddress;
 
@@ -104,12 +118,13 @@ export type BirthDeclaration = {
   "father.reason"?: string;
   "father.occupation"?: string;
   "father.name"?: PersonName;
-  "father.dob"?: string; // YYYY-MM-DD
+  'father.nationality': string;
+  "father.age"?: { age: number; asOfDateRef: string };
   "father.idType"?: IdType;
   "father.nid"?: string;
   "father.passport"?: string;
   "father.brn"?: string;
-  "father.addressSameAs"?: string; // if true, use mother's address
+  "father.addressSameAs"?: boolean;
   "father.address"?: DomesticAddress;
 };
 
@@ -126,10 +141,10 @@ let AUTH_BASE = "https://auth.barbados-qa.opencrvs.org";
 let EVENTS_BASE = "https://register.barbados-qa.opencrvs.org";
 let LOCATIONS_BASE = "https://gateway.barbados-qa.opencrvs.org";
 
-if(process.env.LOCALHOST) {
-    AUTH_BASE = "http://localhost:4040";
-    EVENTS_BASE = "http://localhost:3000";
-    LOCATIONS_BASE = "http://localhost:7070";
+if (process.env.LOCALHOST) {
+  AUTH_BASE = "http://localhost:4040";
+  EVENTS_BASE = "http://localhost:3000";
+  LOCATIONS_BASE = "http://localhost:7070";
 }
 
 async function getAccessToken(): Promise<string> {
@@ -204,7 +219,7 @@ type LocationBundle = {
   entry?: Array<{
     resource?: {
       id?: string;
-      identifier?: Array<{ system?: string; value?: string }>
+      identifier?: Array<{ system?: string; value?: string }>;
       name?: string;
     };
   }>;
@@ -227,18 +242,20 @@ export async function getLocationIdByNameOrStatisticalId(
 
   const data = (await res.json()) as LocationBundle;
 
-  let match
-  !useStatisticalId ? match = data.entry?.find((e) => e.resource?.name === searchString) : match = data.entry?.find(e => {
-    const r = e.resource
-    if(!r){
-        throw new Error("Location resource missing");
-    }
-    return (r.identifier ?? []).some(id => {
-      const value = id.value ?? ''
-      return value === searchString || value.endsWith(`_${searchString}`)
-      // e.g. "CRVS_OFFICE_BRB_Office_1" endsWith "_BRB_Office_1"
-    })
-  })
+  let match;
+  !useStatisticalId
+    ? (match = data.entry?.find((e) => e.resource?.name === searchString))
+    : (match = data.entry?.find((e) => {
+        const r = e.resource;
+        if (!r) {
+          throw new Error("Location resource missing");
+        }
+        return (r.identifier ?? []).some((id) => {
+          const value = id.value ?? "";
+          return value === searchString || value.endsWith(`_${searchString}`);
+          // e.g. "CRVS_OFFICE_BRB_Office_1" endsWith "_BRB_Office_1"
+        });
+      }));
 
   if (!match?.resource?.id) {
     throw new Error(`CRVS office not found: "${searchString}"`);
@@ -288,14 +305,13 @@ async function main() {
     eventId,
     transactionId: uuidv4(),
     declaration: {
-    "birthType.type": "live",
       "child.name": {
         firstname: faker.person.firstName("male"),
         surname: sharedSurname,
       },
       "child.gender": "male",
       "child.dob": faker.date
-        .between({ from: "2025-12-01", to: "2025-12-15" })
+        .between({ from: "2023-12-01", to: "2024-12-15" })
         .toISOString()
         .slice(0, 10),
       "child.placeOfBirth": "HEALTH_FACILITY",
@@ -309,11 +325,12 @@ async function main() {
         firstname: informantFirstName,
         surname: sharedSurname,
       },
-      "informant.dob": faker.date
-        .between({ from: "1970-01-01", to: "1977-12-30" })
-        .toISOString()
-        .slice(0, 10),
+      "informant.age": {
+        age: faker.number.int({ min: 20, max: 80 }),
+        asOfDateRef: "child.dob",
+      },
       "informant.idType": "PASSPORT",
+      "informant.nationality": "BRB",
       "informant.passport":
         faker.string.alpha({ length: 1, casing: "upper" }) +
         faker.string.numeric(7),
@@ -322,9 +339,8 @@ async function main() {
         country: "BRB",
         administrativeArea: parishId,
         streetLevelDetails: {
-          area: faker.location.city(),
           street: faker.location.street(),
-        }
+        },
       },
       "informant.email": faker.internet
         .email({
@@ -339,12 +355,13 @@ async function main() {
         firstname: faker.person.firstName("female"),
         surname: sharedSurname,
       },
-      "mother.dob": faker.date
-        .between({ from: "2000-01-01", to: "2005-12-30" })
-        .toISOString()
-        .slice(0, 10),
+      "mother.age": {
+        age: faker.number.int({ min: 20, max: 80 }),
+        asOfDateRef: "child.dob",
+      },
       "mother.maritalStatus": "MARRIED",
       "mother.idType": "PASSPORT",
+      "mother.nationality": "BRB",
       "mother.passport":
         faker.string.alpha({ length: 1, casing: "upper" }) +
         faker.string.numeric(7),
@@ -353,26 +370,26 @@ async function main() {
         country: "BRB",
         administrativeArea: parishId,
         streetLevelDetails: {
-          area: faker.location.city(),
           street: faker.location.street(),
-        }
+        },
       },
       "mother.occupation": faker.person.jobTitle(),
       "father.reason": "",
+      "father.nationality": "BRB",
       "father.name": {
         firstname: faker.person.firstName("male"),
         surname: sharedSurname,
       },
-      "father.dob": faker.date
-        .between({ from: "2000-01-01", to: "2005-12-30" })
-        .toISOString()
-        .slice(0, 10),
+      "father.age": {
+        age: faker.number.int({ min: 20, max: 80 }),
+        asOfDateRef: "child.dob",
+      },
       "father.idType": "PASSPORT",
       "father.passport":
         faker.string.alpha({ length: 1, casing: "upper" }) +
         faker.string.numeric(7),
       "father.occupation": faker.person.jobTitle(),
-      "father.addressSameAs": "YES", // set to true if address is same as mother
+      "father.addressSameAs": true, // set to true if address is same as mother
     },
     annotation: {},
     createdAtLocation: officeId,
