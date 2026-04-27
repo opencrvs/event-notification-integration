@@ -1,4 +1,4 @@
-# barbados-poc-integration
+# TODO: Convert this barbados-poc-integration to a DHIS2 example with our NEW integration environment
 
 Checkout the repo and run the following commands
 
