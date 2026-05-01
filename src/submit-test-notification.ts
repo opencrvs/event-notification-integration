@@ -18,13 +18,6 @@ type CreateEventResponse = {
   actions: Array<unknown>;
 };
 
-// Reusable building blocks
-export type CertType =
-  | "doctor"
-  | "midwife"
-  | "declaration"
-  | "postmortem_report"
-  | "coroners_certificate";
 export type Gender = "male" | "female" | "unknown";
 
 export type PlaceOfBirth = "HEALTH_FACILITY" | "PRIVATE_HOME" | "OTHER";
@@ -39,20 +32,6 @@ export type InformantRelation =
   | "LEGAL_GUARDIAN"
   | "OTHER";
 
-export type IdType = "NATIONAL_REGISTRATION_NUMBER" | "PASSPORT";
-
-export type StreetLevelDetails = {
-  area?: string;
-  street?: string;
-};
-
-export type DomesticAddress = {
-  addressType: "DOMESTIC";
-  country: "BRB" | string;
-  administrativeArea: string; // parish id (or name, depending on your config)
-  streetLevelDetails?: StreetLevelDetails;
-};
-
 export type PersonName = {
   firstname: string;
   surname: string;
@@ -60,72 +39,16 @@ export type PersonName = {
 
 // The declaration payload shape (string keys like OpenCRVS form fields)
 export type BirthDeclaration = {
-  "birthType.certificateType"?: CertType;
   "child.name": PersonName;
   "child.gender": Gender;
   "child.dob": string;
-  "child.reason"?: string; // Reason for delayed registration
   "child.placeOfBirth": PlaceOfBirth;
   "child.birthLocation"?: string; // hospital id (Location.id) when placeOfBirth = HEALTH_FACILITY
-  "child.birthLocation.privateHome"?: DomesticAddress; // address when placeOfBirth = PRIVATE_HOME
-  "child.birthType"?: string; // SINGLE, TWIN, TRIPLET, HIGHER_MULTIPLE_DELIVERY
-  "child.twinType"?: "FIRST_TWIN" | "SECOND_TWIN"; // if twin or higher multiple
-  "child.tripletType"?: "FIRST_TRIPLET" | "SECOND_TRIPLET" | "THIRD_TRIPLET"; // if triplet or higher multiple
-  "child.higherOrderOfBirths"?: string; // if higher multiple
-  "child.attendantAtBirth"?:
-    | "DOCTOR"
-    | "MIDWIFE"
-    | "NURSE"
-    | "RELATIVE"
-    | "OTHER"
-    | "NONE";
-
   "informant.relation": InformantRelation;
-  "informant.other.relation"?: string;
-  "informant.parentsMarried"?: "YES" | "NO";
-  "informant.name"?: PersonName;
-  "informant.age": { age: number; asOfDateRef: string };
-  "informant.idType"?: IdType;
-  "informant.nationality"?: string;
-  "informant.nid"?: string;
-  "informant.passport"?: string;
-  "informant.brn"?: string;
-  "informant.address"?: DomesticAddress;
   "informant.email"?: string;
-
   "mother.detailsNotAvailable"?: boolean;
   "mother.reason"?: string;
   "mother.name"?: PersonName;
-  "mother.age"?: { age: number; asOfDateRef: string };
-  "mother.maritalStatus"?:
-    | "MARRIED"
-    | "SINGLE"
-    | "DIVORCED"
-    | "WIDOWED"
-    | "NOT_SPECIFIED";
-  "mother.maidenName"?: string;
-  "mother.idType"?: IdType;
-  "mother.passport"?: string;
-  "mother.bornAlive"?: string;
-  "mother.stillborn"?: string;
-  "mother.stillAlive"?: string;
-  "mother.occupation"?: string;
-  'mother.nationality': string;
-  "mother.brn"?: string;
-  "mother.address"?: DomesticAddress;
-
-  "father.detailsNotAvailable"?: boolean;
-  "father.reason"?: string;
-  "father.occupation"?: string;
-  "father.name"?: PersonName;
-  'father.nationality': string;
-  "father.age"?: { age: number; asOfDateRef: string };
-  "father.idType"?: IdType;
-  "father.nid"?: string;
-  "father.passport"?: string;
-  "father.brn"?: string;
-  "father.addressSameAs"?: boolean;
-  "father.address"?: DomesticAddress;
 };
 
 type NotifyRequest = {
@@ -137,9 +60,9 @@ type NotifyRequest = {
   type: "NOTIFY";
 };
 
-let AUTH_BASE = "https://auth.barbados-qa.opencrvs.org";
-let EVENTS_BASE = "https://register.barbados-qa.opencrvs.org";
-let LOCATIONS_BASE = "https://gateway.barbados-qa.opencrvs.org";
+let AUTH_BASE = "https://auth.farajaland-integration.opencrvs.dev";
+let EVENTS_BASE = "https://register.farajaland-integration.opencrvs.dev";
+let LOCATIONS_BASE = "https://gateway.farajaland-integration.opencrvs.dev";
 
 if (process.env.LOCALHOST) {
   AUTH_BASE = "http://localhost:4040";
@@ -231,7 +154,7 @@ export async function getLocationIdByNameOrStatisticalId(
   useStatisticalId: boolean = false
 ): Promise<string> {
   const url = `${LOCATIONS_BASE}/location?type=${locationType}`;
-
+  console.log('Fetching locations from:', url);
   const res = await fetch(url);
 
   if (!res.ok) {
@@ -266,16 +189,16 @@ export async function getLocationIdByNameOrStatisticalId(
 
 async function main() {
   const officeId = await getLocationIdByNameOrStatisticalId(
-    "Registration District A",
+    "Ibombo District Office",
     "CRVS_OFFICE"
   );
   console.log("Using officeId:", officeId);
   const hospitalId = await getLocationIdByNameOrStatisticalId(
-    "Queen Elizabeth Hospital",
+    "Ibombo District Hospital",
     "HEALTH_FACILITY"
   );
-  const parishId = await getLocationIdByNameOrStatisticalId(
-    "Christ Church",
+  const districtId = await getLocationIdByNameOrStatisticalId(
+    "Ibombo",
     "ADMIN_STRUCTURE"
   );
 
@@ -316,32 +239,7 @@ async function main() {
         .slice(0, 10),
       "child.placeOfBirth": "HEALTH_FACILITY",
       "child.birthLocation": hospitalId,
-      "child.birthType": "SINGLE",
-      "child.attendantAtBirth": "DOCTOR",
-      "informant.relation": "OTHER",
-      "informant.other.relation": "Grandfather",
-      "informant.parentsMarried": "YES",
-      "informant.name": {
-        firstname: informantFirstName,
-        surname: sharedSurname,
-      },
-      "informant.age": {
-        age: faker.number.int({ min: 20, max: 80 }),
-        asOfDateRef: "child.dob",
-      },
-      "informant.idType": "PASSPORT",
-      "informant.nationality": "BRB",
-      "informant.passport":
-        faker.string.alpha({ length: 1, casing: "upper" }) +
-        faker.string.numeric(7),
-      "informant.address": {
-        addressType: "DOMESTIC",
-        country: "BRB",
-        administrativeArea: parishId,
-        streetLevelDetails: {
-          street: faker.location.street(),
-        },
-      },
+      "informant.relation": "MOTHER",
       "informant.email": faker.internet
         .email({
           firstName: informantFirstName,
@@ -350,46 +248,10 @@ async function main() {
         })
         .toLowerCase(),
       "mother.detailsNotAvailable": false,
-      "mother.reason": "",
       "mother.name": {
         firstname: faker.person.firstName("female"),
         surname: sharedSurname,
-      },
-      "mother.age": {
-        age: faker.number.int({ min: 20, max: 80 }),
-        asOfDateRef: "child.dob",
-      },
-      "mother.maritalStatus": "MARRIED",
-      "mother.idType": "PASSPORT",
-      "mother.nationality": "BRB",
-      "mother.passport":
-        faker.string.alpha({ length: 1, casing: "upper" }) +
-        faker.string.numeric(7),
-      "mother.address": {
-        addressType: "DOMESTIC",
-        country: "BRB",
-        administrativeArea: parishId,
-        streetLevelDetails: {
-          street: faker.location.street(),
-        },
-      },
-      "mother.occupation": faker.person.jobTitle(),
-      "father.reason": "",
-      "father.nationality": "BRB",
-      "father.name": {
-        firstname: faker.person.firstName("male"),
-        surname: sharedSurname,
-      },
-      "father.age": {
-        age: faker.number.int({ min: 20, max: 80 }),
-        asOfDateRef: "child.dob",
-      },
-      "father.idType": "PASSPORT",
-      "father.passport":
-        faker.string.alpha({ length: 1, casing: "upper" }) +
-        faker.string.numeric(7),
-      "father.occupation": faker.person.jobTitle(),
-      "father.addressSameAs": true, // set to true if address is same as mother
+      }
     },
     annotation: {},
     createdAtLocation: officeId,
