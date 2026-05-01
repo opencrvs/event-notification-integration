@@ -6,7 +6,7 @@ type TokenResponse = { access_token: string; token_type: string };
 type CreateEventRequest = {
   type: "birth";
   transactionId: string;
-  dateOfEvent: { fieldId: string };
+  createdAtLocation: string;
 };
 
 type CreateEventResponse = {
@@ -52,7 +52,6 @@ export type BirthDeclaration = {
 };
 
 type NotifyRequest = {
-  eventId: string;
   transactionId: string;
   declaration: BirthDeclaration;
   annotation: Record<string, unknown>;
@@ -62,12 +61,12 @@ type NotifyRequest = {
 
 let AUTH_BASE = "https://auth.farajaland-integration.opencrvs.dev";
 let EVENTS_BASE = "https://register.farajaland-integration.opencrvs.dev";
-let LOCATIONS_BASE = "https://gateway.farajaland-integration.opencrvs.dev";
+let LOCATIONS_BASE = "https://countryconfig.farajaland-integration.opencrvs.dev/";
 
 if (process.env.LOCALHOST) {
   AUTH_BASE = "http://localhost:4040";
   EVENTS_BASE = "http://localhost:3000";
-  LOCATIONS_BASE = "http://localhost:7070";
+  LOCATIONS_BASE = "http://localhost:3040";
 }
 
 async function getAccessToken(): Promise<string> {
@@ -122,9 +121,10 @@ async function createEvent(
 
 async function notifyEvent(
   accessToken: string,
-  payload: NotifyRequest
+  payload: NotifyRequest,
+  eventId: string
 ): Promise<unknown> {
-  const res = await fetch(`${EVENTS_BASE}/api/events/events/notifications`, {
+  const res = await fetch(`${EVENTS_BASE}/api/events/events/${eventId}/notify`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -138,83 +138,72 @@ async function notifyEvent(
   return res.json();
 }
 
-type LocationBundle = {
-  entry?: Array<{
-    resource?: {
-      id?: string;
-      identifier?: Array<{ system?: string; value?: string }>;
-      name?: string;
-    };
-  }>;
+type Location = {
+  id: string;
+  name?: string;
+  alias?: string;
+  [key: string]: any;
 };
 
-export async function getLocationIdByNameOrStatisticalId(
-  searchString: string,
-  locationType: string,
-  useStatisticalId: boolean = false
-): Promise<string> {
-  const url = `${LOCATIONS_BASE}/location?type=${locationType}`;
-  console.log('Fetching locations from:', url);
-  const res = await fetch(url);
+export async function getLocationIdByName(
+  name: string,
+  locations: Location[]
+): Promise<string | undefined> {
 
-  if (!res.ok) {
-    throw new Error(
-      `Failed to fetch locations: ${res.status} ${await res.text()}`
-    );
-  }
+  const match = locations.find(
+    (loc) =>
+      loc.name?.toLowerCase() === name.toLowerCase() ||
+      loc.alias?.toLowerCase() === name.toLowerCase()
+  );
 
-  const data = (await res.json()) as LocationBundle;
+  console.log(match)
 
-  let match;
-  !useStatisticalId
-    ? (match = data.entry?.find((e) => e.resource?.name === searchString))
-    : (match = data.entry?.find((e) => {
-        const r = e.resource;
-        if (!r) {
-          throw new Error("Location resource missing");
-        }
-        return (r.identifier ?? []).some((id) => {
-          const value = id.value ?? "";
-          return value === searchString || value.endsWith(`_${searchString}`);
-          // e.g. "CRVS_OFFICE_BRB_Office_1" endsWith "_BRB_Office_1"
-        });
-      }));
-
-  if (!match?.resource?.id) {
-    throw new Error(`CRVS office not found: "${searchString}"`);
-  }
-
-  return match.resource.id;
+  return match?.id;
 }
 
+export async function getLocations(
+  accessToken:  string
+): Promise<Location[] | undefined> {
+ 
+  const res = await fetch(`${EVENTS_BASE}/api/events/locations`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch locations: ${res.status}`);
+  }
+
+  return await res.json() as Location[];
+
+}
+
+
+
 async function main() {
-  const officeId = await getLocationIdByNameOrStatisticalId(
-    "Ibombo District Office",
-    "CRVS_OFFICE"
-  );
-  console.log("Using officeId:", officeId);
-  const hospitalId = await getLocationIdByNameOrStatisticalId(
-    "Ibombo District Hospital",
-    "HEALTH_FACILITY"
-  );
-  const districtId = await getLocationIdByNameOrStatisticalId(
-    "Ibombo",
-    "ADMIN_STRUCTURE"
+
+  const accessToken = await getAccessToken();
+  const locations = await getLocations(accessToken);
+
+  if (!locations) {
+    throw new Error(`Failed to fetch locations`);
+  }
+  const officeId = await getLocationIdByName(
+    "Ibombo District Office", locations
   );
 
-  // you can also query using an id if you are concerned about spelling differences:
-  /*const statisticalIdExampleForAnOffice = await getLocationIdByNameOrStatisticalId("BRB_Office_1",
-    "CRVS_OFFICE",
-    true
+  const hospitalId = await getLocationIdByName(
+    "Ibombo District Hospital", locations
   );
-  console.log("Statistical ID example for an office:", statisticalIdExampleForAnOffice);*/
-  const accessToken = await getAccessToken();
 
   // 1) Create event -> capture eventId
   const createPayload: CreateEventRequest = {
     type: "birth",
     transactionId: uuidv4(),
-    dateOfEvent: { fieldId: "child.dob" },
+    createdAtLocation: officeId as string,
   };
 
   const eventId = await createEvent(accessToken, createPayload);
@@ -225,8 +214,8 @@ async function main() {
   const informantFirstName = faker.person.firstName("male");
 
   const notifyPayload: NotifyRequest = {
-    eventId,
     transactionId: uuidv4(),
+    createdAtLocation: officeId as string,
     declaration: {
       "child.name": {
         firstname: faker.person.firstName("male"),
@@ -254,11 +243,11 @@ async function main() {
       }
     },
     annotation: {},
-    createdAtLocation: officeId,
     type: "NOTIFY",
   };
 
-  const notifyRes = await notifyEvent(accessToken, notifyPayload);
+
+  const notifyRes = await notifyEvent(accessToken, notifyPayload, eventId);
   console.log("Notify response:", notifyRes);
 }
 
