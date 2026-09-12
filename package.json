@@ -19,7 +19,7 @@
     "submit-test-notification": "NODE_OPTIONS=--dns-result-order=ipv4first ts-node -r tsconfig-paths/register src/submit-test-notification.ts"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^5.60.1",
     "eslint": "^8.43.0",
     "eslint-config-prettier": "^9.1.0",
